@@ -1,0 +1,35 @@
+name: Deploy NGINX to EKS via OIDC
+
+on:
+  push:
+    branches:
+      - main   # workflow main branch pe push hone par trigger hoga
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE }}  # secret me stored role ARN
+          aws-region: us-west-2
+
+      - name: Set up kubeconfig
+        run: |
+          aws eks update-kubeconfig --region us-west-2 --name signoz-cluster
+
+      - name: Deploy NGINX (Test)
+        run: |
+          kubectl create deployment nginx \
+            --image=nginx \
+            --port=80 \
+            --dry-run=client -o yaml | kubectl apply -f -
